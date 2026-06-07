@@ -50,6 +50,9 @@ public class ProductController {
                 return productService.getProductsByCategory(categoryName);  
         }
 
-        
+        @GetMapping("/categories")
+        public List<String> getUniqueCategories() {
+                return productService.getUniqueCategories(); 
+        }
         
 }
