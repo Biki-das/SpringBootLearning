@@ -3,24 +3,20 @@ package com.example.FakeCommereceApp.dtos;
 import java.math.BigDecimal;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import lombok.experimental.SuperBuilder;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateProductRequestDTO {
+@SuperBuilder
+public class GetProductResponseDTO {
+    private Long id;
     private String title;
-
     private String description;
-
     private String image;
-
-    private BigDecimal price;
-
-
     private String rating;
-
-    private Long categoryId;
+    private BigDecimal price;
 }
