@@ -22,10 +22,4 @@ import lombok.NoArgsConstructor;
 
 public class Order extends BaseEntity {
     private OrderStatus status;
-     
-    @ManyToMany 
-    @JoinTable(name = "order_products" ,
-    joinColumns = @JoinColumn(name = "order_id"),  // the fk belogs to the order table -- Order table 
-    inverseJoinColumns = @JoinColumn(name = "product_id")) // the fk belongs to the product table -- Product table
-    private List<Product> products;
 }
