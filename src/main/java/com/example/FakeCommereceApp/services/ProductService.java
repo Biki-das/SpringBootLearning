@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import com.example.FakeCommereceApp.dtos.CreateProductRequestDTO;
+import com.example.FakeCommereceApp.exceptions.BadRequestException;
+import com.example.FakeCommereceApp.exceptions.ResourceNotFoundException;
 import com.example.FakeCommereceApp.dtos.GetProductResponseDTO;
 import com.example.FakeCommereceApp.dtos.GetProductWithDetailsResponse;
 import com.example.FakeCommereceApp.repositories.ProductRepository;
@@ -31,7 +33,7 @@ public class ProductService {
     }
 
     public Product getProductById(Long id) {
-        return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        return productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
     }
 
     public GetProductResponseDTO getProductResponseById(Long id) {
@@ -54,6 +56,9 @@ public class ProductService {
     }
     
     public Product createProduct(CreateProductRequestDTO requestDTO) {
+        if (requestDTO.getCategoryId() == null) {
+            throw new BadRequestException("categoryId is required");
+        }
         Category category = categoryService.getCategoryById(requestDTO.getCategoryId());
         Product newProduct = Product.builder()
                         .title(requestDTO.getTitle())

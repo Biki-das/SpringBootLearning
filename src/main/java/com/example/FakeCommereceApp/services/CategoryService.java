@@ -4,6 +4,7 @@ import com.example.FakeCommereceApp.schema.Category;
 
 
 import com.example.FakeCommereceApp.dtos.CreateCategoryRequestDTO;
+import com.example.FakeCommereceApp.exceptions.ResourceNotFoundException;
 import com.example.FakeCommereceApp.repositories.CategoryRepository;
 import java.util.List;
 
@@ -29,7 +30,7 @@ public class CategoryService {
    }
 
    public Category getCategoryById(Long id) {
-        return categoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
+        return categoryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
    }
 
    public void deleteCategory(Long id) {

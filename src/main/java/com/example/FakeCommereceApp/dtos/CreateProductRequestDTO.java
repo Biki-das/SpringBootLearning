@@ -19,8 +19,7 @@ public class CreateProductRequestDTO {
 
     private BigDecimal price;
 
-
-    private String rating;
+    private BigDecimal rating;
 
     private Long categoryId;
 }
