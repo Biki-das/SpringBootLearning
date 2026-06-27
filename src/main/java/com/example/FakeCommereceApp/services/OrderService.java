@@ -3,6 +3,9 @@ package com.example.FakeCommereceApp.services;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +32,21 @@ public class OrderService {
     private final ProductRepository productRepository;
 
     public List<GetOrderResponseDTO> getAllOrders() {
+        List<Order> orders = orderRepository.findAll();
+        if (orders.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Long> orderIds = orders.stream().map(Order::getId).toList();
+
+        Map<Long, List<OrderProducts>> linesByOrderId = orderProductRepository
+                .findByOrderIdInWithProduct(orderIds).stream()
+                .collect(Collectors.groupingBy(op -> op.getOrder().getId()));
+
         List<GetOrderResponseDTO> responseDTOs = new ArrayList<>();
-        for (Order order : orderRepository.findAll()) {
-            responseDTOs.add(mapToResponseDTO(order));
+        for (Order order : orders) {
+            responseDTOs.add(mapToResponseDTO(
+                    order, linesByOrderId.getOrDefault(order.getId(), new ArrayList<>())));
         }
         return responseDTOs;
     }
@@ -42,7 +57,8 @@ public class OrderService {
     }
 
     public GetOrderResponseDTO getOrderResponseById(Long id) {
-        return mapToResponseDTO(getOrderById(id));
+        Order order = getOrderById(id);
+        return mapToResponseDTO(order, orderProductRepository.findByOrderIdWithProduct(id));
     }
 
     @Transactional
@@ -51,11 +67,7 @@ public class OrderService {
             throw new BadRequestException("items is required and must not be empty");
         }
 
-        // 1. create the parent order
-        Order order = orderRepository.save(
-                Order.builder().status(OrderStatus.PENDING).build());
-
-        // 2. one order_products row per item
+        List<Long> productIds = new ArrayList<>();
         for (CreateOrderRequestDTO.OrderItem item : request.getItems()) {
             if (item.getProductId() == null) {
                 throw new BadRequestException("productId is required for every item");
@@ -63,31 +75,42 @@ public class OrderService {
             if (item.getQuantity() == null || item.getQuantity() < 1) {
                 throw new BadRequestException("quantity must be at least 1 for every item");
             }
-
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Product not found with id: " + item.getProductId()));
-
-            orderProductRepository.save(
-                    OrderProducts.builder()
-                            .order(order)
-                            .product(product)
-                            .quantity(item.getQuantity())
-                            .build());
+            productIds.add(item.getProductId());
         }
-        return mapToResponseDTO(order);
+
+        Map<Long, Product> productsById = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        Order order = orderRepository.save(
+                Order.builder().status(OrderStatus.PENDING).build());
+
+        List<OrderProducts> lines = new ArrayList<>();
+        for (CreateOrderRequestDTO.OrderItem item : request.getItems()) {
+            Product product = productsById.get(item.getProductId());
+            if (product == null) {
+                throw new ResourceNotFoundException("Product not found with id: " + item.getProductId());
+            }
+            lines.add(OrderProducts.builder()
+                    .order(order)
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .build());
+        }
+
+        orderProductRepository.saveAll(lines);
+
+        return mapToResponseDTO(order, lines);
     }
 
     public GetOrderResponseDTO deleteOrder(Long id) {
         Order orderToDelete = getOrderById(id);
-        GetOrderResponseDTO response = mapToResponseDTO(orderToDelete);
+        GetOrderResponseDTO response = mapToResponseDTO(
+                orderToDelete, orderProductRepository.findByOrderIdWithProduct(id));
         orderRepository.delete(orderToDelete);
         return response;
     }
 
-    private GetOrderResponseDTO mapToResponseDTO(Order order) {
-        List<OrderProducts> orderProducts = orderProductRepository.findByOrderId(order.getId());
-
+    private GetOrderResponseDTO mapToResponseDTO(Order order, List<OrderProducts> orderProducts) {
         List<GetOrderResponseDTO.OrderItemResponse> items = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
